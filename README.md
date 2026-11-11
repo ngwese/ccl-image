@@ -52,3 +52,10 @@ build with elevated permissions instead:
 ```sh
 sudo singularity build ccl-1.14-linuxarm64.sif ccl.def
 ```
+
+## License
+
+This project is licensed under the MIT License — see [LICENSE](LICENSE).
+
+Clozure CL itself is distributed by Clozure Associates under its own
+[license](https://github.com/Clozure/ccl/blob/master/LICENSE).
