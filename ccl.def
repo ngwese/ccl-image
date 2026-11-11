@@ -1,0 +1,68 @@
+Bootstrap: docker
+From: debian:stable-slim
+
+# ---------------------------------------------------------------------------
+# Clozure CL 1.14 (linux/arm64) Singularity/Apptainer definition file
+#
+# Build without elevation where unprivileged --fakeroot is available:
+#
+#     singularity build --fakeroot ccl-1.14-linuxarm64.sif ccl.def
+#
+# On hosts where unprivileged user namespaces are restricted (so --fakeroot
+# is unavailable), build with elevated permissions instead:
+#
+#     sudo singularity build ccl-1.14-linuxarm64.sif ccl.def
+# ---------------------------------------------------------------------------
+
+%labels
+    org.opencontainers.image.title        Clozure CL
+    org.opencontainers.image.version      1.14
+    org.opencontainers.image.vendor       Clozure Associates
+    org.opencontainers.image.licenses     Apache-2.0
+    org.opencontainers.image.source       https://github.com/Clozure/ccl
+    org.opencontainers.image.description  Clozure Common Lisp 1.14 for linux/arm64
+
+%help
+    Clozure Common Lisp 1.14 (linux/arm64).
+
+    Run the interactive REPL:
+        singularity run   ccl-1.14-linuxarm64.sif
+        singularity shell ccl-1.14-linuxarm64.sif   # then: ccl
+        singularity exec  ccl-1.14-linuxarm64.sif ccl --batch -e '(print 42)'
+
+    The full CCL distribution (kernel, compiler sources, libraries) is at
+    /opt/ccl inside the container.
+
+%environment
+    export CCL_DEFAULT_DIRECTORY=/opt/ccl
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+
+%post
+    set -eux
+    CCL_VERSION=1.14
+    CCL_SHA256=766c4ef63708ea9152f4565eb59d89a79ab3ddaf852a69c0ef91633f89f61332
+
+    apt-get update
+    apt-get install -y --no-install-recommends ca-certificates curl
+
+    curl -fsSL --retry 3 -o /tmp/ccl.tar.gz \
+        "https://github.com/Clozure/ccl/releases/download/v${CCL_VERSION}/ccl-${CCL_VERSION}-linuxarm64.tar.gz"
+    echo "${CCL_SHA256}  /tmp/ccl.tar.gz" | sha256sum -c -
+    mkdir -p /opt/ccl
+    tar -xzf /tmp/ccl.tar.gz --strip-components=1 -C /opt/ccl
+    rm -f /tmp/ccl.tar.gz
+
+    printf '#!/bin/sh\nexec /opt/ccl/arm64cl "$@"\n' > /usr/local/bin/ccl
+    chmod 0755 /usr/local/bin/ccl
+
+    apt-get purge -y --auto-remove curl
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+
+%runscript
+    exec /opt/ccl/arm64cl "$@"
+
+%test
+    echo '(format t "CCL ~a ready~%" (lisp-implementation-version))(quit)' \
+        | /opt/ccl/arm64cl --batch
